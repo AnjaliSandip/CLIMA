@@ -178,7 +178,6 @@ function dostep!(
     slowrhs_linear! = mrigark.slowrhs_linear!
     Γs = mrigark.Γs
     NΓ = length(Γs)
-    γs = ntuple(k -> ntuple(j -> Γs[k][s, j], s), NΓ)
 
     ts = time
     for s in 1:div(Nstages, 2)
@@ -188,10 +187,10 @@ function dostep!(
 
         # initialize stage
         slowrhs!(Rs[2s-1], Q, param, ts, increment = false)
-        # FIXME: Do we need to call something like `mri_update_rate!`
-        # like in MRIGARK_explicit.jl?
 
         # fast solver
+        γs = ntuple(k -> ntuple(j -> Γs[k][2s-1, j], s), NΓ)
+        mriparam = MRIParam(param, γs, realview.(Rs[1:s]), ts, dts)
         solve!(Q, mrigark.fastsolver, param; timeend = stagetime)
 
         # slow solver
@@ -201,8 +200,9 @@ function dostep!(
             slowrhs_linear!(LQ, Q, p, stagetime; increment = false)
             @. LQ = Q - α * LQ
         end
-        # Qhat = Q - ∑_k Γ_{sk} Rs[k]
-        mri_create_Qhat!(Qhat, Q, γs, Rs)
+        # Qhat = Q + ∑_k Γ_{sk} dt Rs[k]
+        γs = ntuple(k -> ntuple(j -> Γs[k][2s, j], s), NΓ)
+        mri_create_Qhat!(Qhat, Q, γs, Rs, dt)
         # (Q - α * LQ) = Qhat
         linearsolve!(implicitoperator!, linearsolver, Q, Qhat, p, stagetime)
 
@@ -211,7 +211,7 @@ function dostep!(
     end
 end
 
-@kernel function mri_create_Qhat!(Qhat, Q, γs, Rs)
+@kernel function mri_create_Qhat!(Qhat, Q, γs, Rs, dt)
     i = @index(Global, Linear)
     @inbounds begin
         NΓ = length(γs)
@@ -221,7 +221,7 @@ end
         for s in 1:Ns
             ri = Rs[s][i]
             sc = γs[1][s]
-            qhat -= sc * ri
+            qhat += dt * sc * ri
         end
         Qhat[i] = qhat
     end

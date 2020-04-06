@@ -238,17 +238,18 @@ function SolverConfiguration(
         # Inner-most solver (explicit method for horizontal acoustic waves)
         inner_solver = inner_method(horizontal_dg, Q; dt = inner_dt)
         # Middle solver (explicit GARK method for advection/diffusion)
-        middle_solver = middle_method(rem_dg, inner_solver, Q; dt = middle_dt)
+        middle_solver = middle_method(rem_dg, inner_solver, Q, dt = middle_dt)
         # Outer solver (implicit GARK for vertical acoustic waves)
-        linear_solver = LinearBackwardEulerSolver(
-            ode_solver_type.linear_solver(),
-            true,
-        )
         solver = outer_method(
             vertical_dg,
-            linear_solver,
+            LinearBackwardEulerSolver(
+                ode_solver_type.linear_solver();
+                # FIXME: more robust way of determining what this flag should be
+                # given a solver?
+                isadjustable = false,
+            ),
             middle_solver,
-            Q,
+            Q;
             dt = ode_dt,
             t0 = t0,
         )

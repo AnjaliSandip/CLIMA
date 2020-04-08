@@ -80,7 +80,7 @@ function main()
     expected_result[Float64] = 9.5073559883839516e+13
 
     @testset "acoustic wave" begin
-        for FT in (Float32, Float64)
+        for FT in (Float64, Float32)
             result = run(
                 mpicomm,
                 polynomialorder,
@@ -165,8 +165,8 @@ function run(
     Q = init_ode_state(dg, FT(0))
 
     # The linear model which contains the fast modes
-    acousticmodel = AtmosAcousticLinearModel(fullmodel)
-    # acousticmodel = AtmosAcousticGravityLinearModel(fullmodel)
+    # acousticmodel = AtmosAcousticLinearModel(fullmodel)
+    acousticmodel = AtmosAcousticGravityLinearModel(fullmodel)
 
     # Vertical acoustic model will be handle with implicit time stepping
     vacoustic_dg = DGModel(
@@ -204,29 +204,32 @@ function run(
 
     # determine the time step for the horizontally acoustic model and set up the
     # inner (fast) solver
-    @show acoustic_speed = soundspeed_air(FT(setup.T_ref), fullmodel.param_set)
-    @show hacoustic_dt = hmnd / acoustic_speed
+    acoustic_speed = soundspeed_air(FT(setup.T_ref), fullmodel.param_set)
+    hacoustic_dt = hmnd / acoustic_speed
     hacoustic_solver =
         LSRK144NiegemannDiehlBusch(hacoustic_dg, Q; dt = hacoustic_dt)
 
     # determine the time step for the advection model and set up the middle
     # (fast) solver
     advection_speed = 1 # FIXME: What's a reasonable number here?
-    @show advection_dt = min(hmnd, vmnd) / advection_speed
+    advection_dt = min(hmnd, vmnd) / advection_speed
     advection_solver =
         MRIGARKERK45aSandu(advection_dg, hacoustic_solver, Q; dt = advection_dt)
     # @assert advection_dt > hacoustic_dt
 
     # The time step for the vertical acoustic model is set to the twice the
     # advection model, and then fixed up to hit exactly the output time 
-    # nsteps_output = ceil(outputtime / (vmnd / acoustic_speed))
-    nsteps_output = ceil(outputtime / advection_dt)
-    @show vacoustic_dt = outputtime / nsteps_output
+    vacoustic_dt = advection_dt
+    vacoustic_dt = 10vmnd / acoustic_speed
+
+    nsteps_output = ceil(outputtime / vacoustic_dt)
+    vacoustic_dt = outputtime / nsteps_output
     nsteps = ceil(Int, timeend / vacoustic_dt)
     @assert nsteps * vacoustic_dt ≈ timeend
     nsteps = 2
+    @show (vacoustic_dt, advection_dt, hacoustic_dt)
 
-    vacoustic_solver = MRIGARKIRK21aSandu(
+    vacoustic_solver = MRIGARKESDIRK46aSandu(
         vacoustic_dg,
         LinearBackwardEulerSolver(ManyColumnLU(); isadjustable = false),
         advection_solver,
@@ -236,13 +239,7 @@ function run(
     )
     odesolver = vacoustic_solver
 
-    filterorder = 18
-    filter = ExponentialFilter(grid, 0, filterorder)
-    cbfilter = EveryXSimulationSteps(1) do
-        Filters.apply!(Q, 1:size(Q, 2), grid, filter, VerticalDirection())
-        nothing
-    end
-
+    # print some initial diagnostic information
     eng0 = norm(Q)
     @info @sprintf(
         """Starting
@@ -262,6 +259,14 @@ function run(
         vacoustic_dt,
         eng0
     )
+
+    # Setup the filtering callback
+    filterorder = 18
+    filter = ExponentialFilter(grid, 0, filterorder)
+    cbfilter = EveryXSimulationSteps(1) do
+        Filters.apply!(Q, 1:size(Q, 2), grid, filter, VerticalDirection())
+        nothing
+    end
 
     # Set up the information callback
     starttime = Ref(now())
@@ -283,6 +288,7 @@ function run(
     end
     callbacks = (cbinfo, cbfilter)
 
+    # Setup the vtk callback
     if output_vtk
         # create vtk dir
         vtkdir =
@@ -304,6 +310,7 @@ function run(
         callbacks = (callbacks..., cbvtk)
     end
 
+    # Solve the ode
     solve!(
         Q,
         odesolver;

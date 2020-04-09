@@ -49,7 +49,7 @@ function init_risingbubble!(bl, state, aux, (x, y, z), t)
     Δθ::FT = 0
 
     if r <= rc
-        Δθ = FT(5) * cospi(r / rc / 2)
+        Δθ = -FT(5) * cospi(r / rc / 2)
     end
 
     #Perturbed state:
@@ -88,7 +88,7 @@ function config_risingbubble(FT, N, resolution, xmax, ymax, zmax)
         HydrostaticState(DryAdiabaticProfile(typemin(FT), FT(300)), FT(0))
     model = AtmosModel{FT}(
         AtmosLESConfigType;
-        turbulence = SmagorinskyLilly(C_smag),
+        turbulence = ConstantViscosityWithDivergence(50),
         hyperdiffusion = StandardHyperDiffusion(60),
         source = (Gravity(),),
         ref_state = ref_state,

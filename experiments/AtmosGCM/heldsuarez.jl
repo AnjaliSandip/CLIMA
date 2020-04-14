@@ -80,6 +80,7 @@ function config_heldsuarez(FT, poly_order, resolution)
         param_set;
         ref_state = ref_state,
         turbulence = ConstantViscosityWithDivergence(turb_visc),
+        # hyperdiffusion = StandardHyperDiffusion(60),
         moisture = DryModel(),
         source = (Gravity(), Coriolis(), held_suarez_forcing!, sponge),
         init_state = init_heldsuarez!,
@@ -198,10 +199,14 @@ function main()
     driver_config = config_heldsuarez(FT, poly_order, (n_horz, n_vert))
 
     # Set up ODE solver configuration
-    ode_solver_type = CLIMA.IMEXSolverType(
-        linear_solver = ManyColumnLU,
-        solver_method = ARK2GiraldoKellyConstantinescu,
+    ode_solver_type = CLIMA.MultirateHEVISolverType(
+        outer_method = MRIGARKESDIRK34aSandu,
+        middle_method = MRIGARKERK45aSandu,
+        inner_method = LSRK54CarpenterKennedy,
+        timestep_ratio_outer = 50,
+        timestep_ratio_inner = 50,
     )
+    CFL = FT(33)
 
     # Set up experiment
     solver_config = CLIMA.SolverConfiguration(
@@ -209,9 +214,9 @@ function main()
         timeend,
         driver_config,
         ode_solver_type = ode_solver_type,
-        Courant_number = 0.14,
+        Courant_number = CFL,
         init_on_cpu = true,
-        CFL_direction = HorizontalDirection(),
+        CFL_direction = VerticalDirection(),
     )
 
     # Set up diagnostics

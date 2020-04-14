@@ -75,11 +75,12 @@ end
 function config_risingbubble(FT, N, resolution, xmax, ymax, zmax)
 
     # Choose explicit solver
-    ode_solver = CLIMA.MultirateSolverType(
-        linear_model = AtmosAcousticGravityLinearModel,
-        slow_method = LSRK144NiegemannDiehlBusch,
-        fast_method = LSRK144NiegemannDiehlBusch,
-        timestep_ratio = 10,
+    ode_solver = CLIMA.MultirateHEVISolverType(
+        outer_method = MRIGARKIRK21aSandu,
+        middle_method = MRIGARKERK33aSandu,
+        inner_method = LSRK144NiegemannDiehlBusch,
+        timestep_ratio_outer = 10,
+        timestep_ratio_inner = 10,
     )
 
     # Set up the model

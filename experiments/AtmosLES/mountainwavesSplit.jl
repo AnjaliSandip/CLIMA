@@ -161,6 +161,7 @@ function main()
         Courant_number = CFL,
     )
     dgn_config = config_diagnostics(driver_config)
+    Δt = solver_config.dt
 
     # User defined filter (TMAR positivity preserving filter)
     cbtmarfilter = GenericCallbacks.EveryXSimulationSteps(1) do (init = false)
@@ -169,7 +170,10 @@ function main()
     end
 
     vtk_step = 0
-    cbvtk = GenericCallbacks.EveryXSimulationSteps(20) do (init = false)
+    cbvtk = GenericCallbacks.EveryXSimulationSteps(ceil(
+        Int,
+        100 / Δt,
+    )) do (init = false)
         mkpath("./vtk-rtb/")
         outprefix = @sprintf(
             "./vtk-rtb/mountainwavesSplit_mpirank%04d_step%04d",

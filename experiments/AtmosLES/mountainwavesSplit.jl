@@ -78,13 +78,8 @@ end
 function config_gravitywave(FT, N, resolution, xmin, xmax, ymax, zmax, hm, a)
 
     # Choose explicit solver
-
-    ode_solver = CLIMA.MISSolverType(
-        linear_model = AtmosAcousticGravityLinearModelSplit,
-        slow_method = MIS2,
-        fast_method = (dg, Q) -> StormerVerlet(dg, [1, 5], 2:4, Q),
-        number_of_steps = (45,),
-    )
+    ode_solver =
+        CLIMA.ExplicitSolverType(solver_method = LSRK144NiegemannDiehlBusch)
 
     # Set up the model
     C_smag = FT(0.23)
@@ -151,11 +146,10 @@ function main()
     a = FT(1000) #FT(10000)
     # Simulation time
     t0 = FT(0)
-    Δt = FT(3.0)
     timeend = FT(2160.0)
 
     # Courant number
-    CFL = FT(20)
+    CFL = FT(1)
 
     driver_config =
         config_gravitywave(FT, N, resolution, xmin, xmax, ymax, zmax, hm, a)
@@ -164,7 +158,6 @@ function main()
         timeend,
         driver_config,
         init_on_cpu = true,
-        ode_dt = Δt,
         Courant_number = CFL,
     )
     dgn_config = config_diagnostics(driver_config)

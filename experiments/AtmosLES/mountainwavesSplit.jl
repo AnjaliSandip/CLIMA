@@ -174,9 +174,9 @@ function main()
         Int,
         100 / Δt,
     )) do (init = false)
-        mkpath("./vtk-rtb/")
+        mkpath("./vtk-mountainwavesSplit/")
         outprefix = @sprintf(
-            "./vtk-rtb/mountainwavesSplit_mpirank%04d_step%04d",
+            "./vtk-mountainwavesSplit/mpirank%04d_step%04d",
             MPI.Comm_rank(driver_config.mpicomm),
             vtk_step
         )

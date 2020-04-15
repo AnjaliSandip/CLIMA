@@ -46,14 +46,19 @@ function init_gravitywave!(bl, state, aux, (x, y, z), t)
     p0::FT = MSLP(bl.param_set)
     _grav::FT = grav(bl.param_set)
     N::FT = 0.01
-    kappa::FT = R_gas/c_p
+    kappa::FT = R_gas / c_p
 
     UMax = FT(10)
     θ_ref::FT = 300
 
-    θ = θ_ref * exp(z*N^2/_grav) # potential temperature
-    p = p0 * (1 - _grav / (c_p * θ_ref * N^2 / _grav) * (1 - exp(-N^2 / _grav * z))) ^ (c_p / R_gas) # density
-    ρ = p / ((p / p0) ^ kappa * R_gas * θ); # density
+    θ = θ_ref * exp(z * N^2 / _grav) # potential temperature
+    p =
+        p0 *
+        (
+            1 -
+            _grav / (c_p * θ_ref * N^2 / _grav) * (1 - exp(-N^2 / _grav * z))
+        )^(c_p / R_gas) # density
+    ρ = p / ((p / p0)^kappa * R_gas * θ) # density
     q_tot = FT(0)
     ts = LiquidIcePotTempSHumEquil(θ, ρ, q_tot, bl.param_set)
     q_pt = PhasePartition(ts)
@@ -77,13 +82,14 @@ function config_gravitywave(FT, N, resolution, xmin, xmax, ymax, zmax, hm, a)
     ode_solver = CLIMA.MISSolverType(
         linear_model = AtmosAcousticGravityLinearModelSplit,
         slow_method = MIS2,
-        fast_method = (dg,Q) -> StormerVerlet(dg, [1,5], 2:4, Q),
+        fast_method = (dg, Q) -> StormerVerlet(dg, [1, 5], 2:4, Q),
         number_of_steps = (45,),
     )
 
     # Set up the model
     C_smag = FT(0.23)
-    ref_state = HydrostaticState(StableTemperatureProfile(FT(300),FT(1.e-2)), FT(0))
+    ref_state =
+        HydrostaticState(StableTemperatureProfile(FT(300), FT(1.e-2)), FT(0))
     #ref_state = HydrostaticState(DryAdiabaticProfile(typemin(FT), FT(300)), FT(0))
     model = AtmosModel{FT}(
         AtmosLESConfigType;
@@ -95,9 +101,9 @@ function config_gravitywave(FT, N, resolution, xmin, xmax, ymax, zmax, hm, a)
     )
 
     # Problem configuration
-    function agnesiWarp(x,y,z)
-        h=(hm*a^2)/((x-0.5*(xmin+xmax))^2+a^2)
-        return x,y,zmax*(z+h)/(zmax+h)
+    function agnesiWarp(x, y, z)
+        h = (hm * a^2) / ((x - 0.5 * (xmin + xmax))^2 + a^2)
+        return x, y, zmax * (z + h) / (zmax + h)
     end
     config = CLIMA.AtmosLESConfiguration(
         "GravityWave",
@@ -151,7 +157,8 @@ function main()
     # Courant number
     CFL = FT(20)
 
-    driver_config = config_gravitywave(FT, N, resolution, xmin, xmax, ymax, zmax, hm, a)
+    driver_config =
+        config_gravitywave(FT, N, resolution, xmin, xmax, ymax, zmax, hm, a)
     solver_config = CLIMA.SolverConfiguration(
         t0,
         timeend,
@@ -169,17 +176,24 @@ function main()
     end
 
     vtk_step = 0
-    cbvtk = GenericCallbacks.EveryXSimulationSteps(20)  do (init=false)
+    cbvtk = GenericCallbacks.EveryXSimulationSteps(20) do (init = false)
         mkpath("./vtk-rtb/")
-        outprefix = @sprintf("./vtk-rtb/mountainwavesSplit_mpirank%04d_step%04d",
-                         MPI.Comm_rank(driver_config.mpicomm), vtk_step)
-        writevtk(outprefix, solver_config.Q, solver_config.dg,
-            flattenednames(vars_state(driver_config.bl,FT)),
+        outprefix = @sprintf(
+            "./vtk-rtb/mountainwavesSplit_mpirank%04d_step%04d",
+            MPI.Comm_rank(driver_config.mpicomm),
+            vtk_step
+        )
+        writevtk(
+            outprefix,
+            solver_config.Q,
+            solver_config.dg,
+            flattenednames(vars_state(driver_config.bl, FT)),
             solver_config.dg.auxstate,
-            flattenednames(vars_aux(driver_config.bl,FT)))
+            flattenednames(vars_aux(driver_config.bl, FT)),
+        )
         vtk_step += 1
         nothing
-     end
+    end
 
     # Invoke solver (calls solve! function for time-integrator)
     result = CLIMA.invoke!(

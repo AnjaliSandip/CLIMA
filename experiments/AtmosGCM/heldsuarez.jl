@@ -39,16 +39,15 @@ end
 
 function config_heldsuarez(FT, poly_order, resolution)
     # Set up a reference state for linearization of equations
-    #T_sfc::FT = 290 # surface temperature of reference state (K)
-    #ΔT::FT = 60     # temperature drop between surface and top of atmosphere (K)
-    #H_t::FT = 8e3   # height sclae over which temperature drops (m)
-    #temp_profile_ref = DecayingTemperatureProfile(T_sfc, ΔT, H_t)
-    temp_profile_ref = IsothermalProfile(FT(255))
+    T_sfc::FT = 290 # surface temperature of reference state (K)
+    ΔT::FT = 60     # temperature drop between surface and top of atmosphere (K)
+    H_t::FT = 8e3   # height sclae over which temperature drops (m)
+    temp_profile_ref = DecayingTemperatureProfile(T_sfc, ΔT, H_t)
     ref_state = HydrostaticState(temp_profile_ref, FT(0))
 
     # Set up a Rayleigh sponge to dampen flow at the top of the domain
     domain_height::FT = 30e3               # distance between surface and top of atmosphere (m)
-    z_sponge::FT = 15e3                    # height at which sponge begins (m)
+    z_sponge::FT = 12e3                    # height at which sponge begins (m)
     α_relax::FT = 1 / 60 / 15              # sponge relaxation rate (1/s)
     exp_sponge = 2                         # sponge exponent for squared-sinusoid profile
     u_relax = SVector(FT(0), FT(0), FT(0)) # relaxation velocity (m/s)
@@ -69,7 +68,7 @@ function config_heldsuarez(FT, poly_order, resolution)
         AtmosGCMConfigType,
         param_set;
         ref_state = ref_state,
-        #turbulence = SmagorinskyLilly(c_smag),
+        # turbulence = SmagorinskyLilly(c_smag),
         turbulence = ConstantViscosityWithDivergence(FT(0)),
         #hyperdiffusion = StandardHyperDiffusion(τ_hyper),
         moisture = DryModel(),

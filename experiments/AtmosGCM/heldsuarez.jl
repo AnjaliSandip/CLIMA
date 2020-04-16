@@ -69,8 +69,9 @@ function config_heldsuarez(FT, poly_order, resolution)
         AtmosGCMConfigType,
         param_set;
         ref_state = ref_state,
-        turbulence = SmagorinskyLilly(c_smag),
-        hyperdiffusion = StandardHyperDiffusion(τ_hyper),
+        #turbulence = SmagorinskyLilly(c_smag),
+        turbulence = ConstantViscosityWithDivergence(FT(0)),
+        #hyperdiffusion = StandardHyperDiffusion(τ_hyper),
         moisture = DryModel(),
         source = (Gravity(), Coriolis(), held_suarez_forcing!, sponge),
         init_state = init_heldsuarez!,
@@ -196,7 +197,7 @@ function main()
         timestep_ratio_outer = 50,
         timestep_ratio_inner = 100,
     )
-    CFL = FT(0.1)
+    CFL = FT(0.05)
 
     # Set up experiment
     solver_config = CLIMA.SolverConfiguration(

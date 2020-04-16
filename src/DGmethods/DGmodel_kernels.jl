@@ -26,6 +26,7 @@ const _ξ1x1, _ξ2x1, _ξ3x1 = Grids._ξ1x1, Grids._ξ2x1, Grids._ξ3x1
 const _ξ1x2, _ξ2x2, _ξ3x2 = Grids._ξ1x2, Grids._ξ2x2, Grids._ξ3x2
 const _ξ1x3, _ξ2x3, _ξ3x3 = Grids._ξ1x3, Grids._ξ2x3, Grids._ξ3x3
 const _M, _MI = Grids._M, Grids._MI
+const _J, _JI = Grids._J, Grids._JI
 const _x1, _x2, _x3 = Grids._x1, Grids._x2, Grids._x3
 const _JcV = Grids._JcV
 
@@ -56,6 +57,7 @@ See [`odefun!`](@ref) for usage.
     t,
     ω,
     D,
+    ωD,
     elems,
     increment,
 ) where {dim, polyorder}
@@ -84,6 +86,7 @@ See [`odefun!`](@ref) for usage.
     s_F = @localmem FT (3, Nq, Nq, Nqk, nstate)
     s_ω = @localmem FT (Nq,)
     s_D = @localmem FT (Nq, Nq)
+    s_ωD = @localmem FT (Nq, Nq)
     l_rhs = @private FT (nstate,)
 
     e = @index(Group, Linear)
@@ -93,8 +96,9 @@ See [`odefun!`](@ref) for usage.
     @inbounds begin
         s_ω[j] = ω[j]
         s_D[i, j] = D[i, j]
+        s_ωD[i, j] = ωD[i, j]
 
-        M = vgeo[ijk, _M, e]
+        J = vgeo[ijk, _J, e]
         ξ1x1 = vgeo[ijk, _ξ1x1, e]
         ξ1x2 = vgeo[ijk, _ξ1x2, e]
         ξ1x3 = vgeo[ijk, _ξ1x3, e]
@@ -166,12 +170,12 @@ See [`odefun!`](@ref) for usage.
             F1, F2, F3 =
                 s_F[1, i, j, k, s], s_F[2, i, j, k, s], s_F[3, i, j, k, s]
 
-            s_F[1, i, j, k, s] = M * (ξ1x1 * F1 + ξ1x2 * F2 + ξ1x3 * F3)
+            s_F[1, i, j, k, s] = J * (ξ1x1 * F1 + ξ1x2 * F2 + ξ1x3 * F3)
             if dim == 3 || (dim == 2 && direction isa EveryDirection)
-                s_F[2, i, j, k, s] = M * (ξ2x1 * F1 + ξ2x2 * F2 + ξ2x3 * F3)
+                s_F[2, i, j, k, s] = J * (ξ2x1 * F1 + ξ2x2 * F2 + ξ2x3 * F3)
             end
             if dim == 3 && direction isa EveryDirection
-                s_F[3, i, j, k, s] = M * (ξ3x1 * F1 + ξ3x2 * F2 + ξ3x3 * F3)
+                s_F[3, i, j, k, s] = J * (ξ3x1 * F1 + ξ3x2 * F2 + ξ3x3 * F3)
             end
         end
 
@@ -192,20 +196,28 @@ See [`odefun!`](@ref) for usage.
         @synchronize
 
         # Weak "inside metrics" derivative
-        MI = vgeo[ijk, _MI, e]
+        JI = vgeo[ijk, _JI, e]
         @unroll for s in 1:nstate
             @unroll for n in 1:Nq
                 # ξ1-grid lines
-                l_rhs[s] += MI * s_D[n, i] * s_F[1, n, j, k, s]
+                l_rhs[s] += JI * (1 / s_ω[i]) * s_ωD[n, i] * s_F[1, n, j, k, s]
+            end
 
-                # ξ2-grid lines
+            tmp = -zero(FT)
+            @unroll for n in 1:Nq
                 if dim == 3 || (dim == 2 && direction isa EveryDirection)
-                    l_rhs[s] += MI * s_D[n, j] * s_F[2, i, n, k, s]
+                    # ξ2-grid lines
+                    # tmp += JI * (1 / s_ω[j]) * s_ωD[n, j] * s_F[2, i, n, k, s]
+                    tmp += s_D[j, n] * 100
                 end
+            end
+            l_rhs[s] += tmp
 
-                # ξ3-grid lines
+            # ξ3-grid lines
+            @unroll for n in 1:Nq
                 if dim == 3 && direction isa EveryDirection
-                    l_rhs[s] += MI * s_D[n, k] * s_F[3, i, j, n, s]
+                    l_rhs[s] +=
+                        JI * (1 / s_ω[k]) * s_ωD[n, k] * s_F[3, i, j, n, s]
                 end
             end
         end
@@ -436,6 +448,7 @@ See [`odefun!`](@ref) for usage.
         elseif direction isa HorizontalDirection
             faces = 1:(nface - 2)
         end
+        faces = (1, 2, 5, 6)
 
         Nq = N + 1
         Nqk = dim == 2 ? 1 : Nq

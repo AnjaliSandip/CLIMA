@@ -88,7 +88,7 @@ function config_gravitywave(FT, N, resolution, xmin, xmax, ymax, zmax, hm, a)
     #ref_state = HydrostaticState(DryAdiabaticProfile(typemin(FT), FT(300)), FT(0))
     model = AtmosModel{FT}(
         AtmosLESConfigType;
-        turbulence = ConstantViscosityWithDivergence{FT}(0), #SmagorinskyLilly{FT}(C_smag), #AnisoMinDiss{FT}(1),
+        turbulence = SmagorinskyLilly{FT}(C_smag), #AnisoMinDiss{FT}(1),
         source = (Gravity(),),
         ref_state = ref_state,
         init_state = init_gravitywave!,
@@ -155,7 +155,7 @@ function main()
     a = FT(1000) #FT(10000)
     # Simulation time
     t0 = FT(0)
-    timeend = FT(1)
+    timeend = FT(2160.0)
 
     # Courant number
     CFL = FT(1)
@@ -179,10 +179,10 @@ function main()
     end
 
     vtk_step = 0
-    # cbvtk = GenericCallbacks.EveryXSimulationSteps(floor(
-    #     Int,
-    #     timeend / Δt,
-    cbvtk = GenericCallbacks.EveryXSimulationSteps(1) do (init = false)
+    cbvtk = GenericCallbacks.EveryXSimulationSteps(ceil(
+        Int,
+        100 / Δt,
+    )) do (init = false)
         mkpath("./vtk-mountainwavesSplit/")
         outprefix = @sprintf(
             "./vtk-mountainwavesSplit/mpirank%04d_step%04d",
@@ -209,8 +209,7 @@ function main()
         check_euclidean_distance = true,
     )
 
-    # @test isapprox(result, FT(1); atol = 1.5e-3)
+    @test isapprox(result, FT(1); atol = 1.5e-3)
 end
 
 main()
-nothing

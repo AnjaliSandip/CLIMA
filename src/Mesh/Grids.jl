@@ -55,7 +55,7 @@ function min_node_distance(
 end
 
 # {{{
-const _nvgeo = 18
+const _nvgeo = 16
 const _ξ1x1,
 _ξ2x1,
 _ξ3x1,
@@ -65,8 +65,6 @@ _ξ3x2,
 _ξ1x3,
 _ξ2x3,
 _ξ3x3,
-_J,
-_JI,
 _M,
 _MI,
 _MH,
@@ -84,8 +82,6 @@ const vgeoid = (
     ξ1x3id = _ξ1x3,
     ξ2x3id = _ξ2x3,
     ξ3x3id = _ξ3x3,
-    Jid = _J,
-    JIid = _JI,
     Mid = _M,
     MIid = _MI,
     MHid = _MH,
@@ -178,9 +174,6 @@ struct DiscontinuousSpectralElementGrid{
     "1-D derivative operator on the device"
     D::DAT2
 
-    "1-D derivative operator on the device"
-    ωD::DAT2
-
     "1-D indefinite integral operator on the device"
     Imat::DAT2
 
@@ -196,14 +189,6 @@ struct DiscontinuousSpectralElementGrid{
         (ξ, ω) = Elements.lglpoints(FloatType, N)
         Imat = indefinite_integral_interpolation_matrix(ξ, ω)
         D = Elements.spectralderivative(ξ)
-        ωD = Diagonal(ω) * D
-        for i in 1:(N + 1)
-            rowsum = zero(FloatType)
-            for j in 1:(N + 1)
-                rowsum += D[i, j]
-            end
-            D[i, end] -= rowsum
-        end
 
         (vmap⁻, vmap⁺) = mappings(
             N,
@@ -244,7 +229,6 @@ struct DiscontinuousSpectralElementGrid{
         activedofs = DeviceArray(activedofs)
         ω = DeviceArray(ω)
         D = DeviceArray(D)
-        ωD = DeviceArray(ωD)
         Imat = DeviceArray(Imat)
 
         # FIXME: There has got to be a better way!
@@ -287,7 +271,6 @@ struct DiscontinuousSpectralElementGrid{
             activedofs,
             ω,
             D,
-            ωD,
             Imat,
         )
     end
@@ -451,8 +434,6 @@ function computegeometry(
         ξ1x3,
         ξ2x3,
         ξ3x3,
-        J,
-        JI,
         MJ,
         MJI,
         MHJH,
@@ -461,7 +442,7 @@ function computegeometry(
         x3,
         JcV,
     ) = ntuple(j -> (@view vgeo[:, j, :]), _nvgeo)
-    # J = similar(x1)
+    J = similar(x1)
     (n1, n2, n3, sMJ, vMJI) = ntuple(j -> (@view sgeo[j, :, :, :]), _nsgeo)
     sJ = similar(sMJ)
 
@@ -501,7 +482,6 @@ function computegeometry(
     end
 
     M = kron(1, ntuple(j -> ω, dim)...)
-    JI .= 1 ./ J
     MJ .= M .* J
     MJI .= 1 ./ MJ
     vMJI .= MJI[vmap⁻]

@@ -363,7 +363,6 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
         t,
         grid.ω,
         grid.D,
-        grid.ωD,
         topology.realelems,
         increment;
         ndrange = ndrange_volume,

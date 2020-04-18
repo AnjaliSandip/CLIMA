@@ -100,42 +100,41 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
 
     if nviscstate > 0 || nhyperviscstate > 0
 
-        comp_stream = volumeviscterms!(device, workgroups_volume)(
+        comp_stream = volumeviscterms!(device, (Nq, Nq))(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
-            Q.data,
             Qvisc.data,
             Qhypervisc_grad.data,
+            Q.data,
             auxstate.data,
             grid.vgeo,
-            t,
             grid.D,
+            t,
+            dg.diffusion_direction,
             hypervisc_indexmap,
-            topology.realelems,
-            ndrange = ndrange_volume,
+            Val(dim),
+            Val(N);
+            ndrange = (Nq * nrealelem, Nq),
             dependencies = (comp_stream,),
         )
 
         comp_stream = faceviscterms!(device, workgroups_surface)(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
-            dg.gradnumflux,
-            Q.data,
             Qvisc.data,
             Qhypervisc_grad.data,
+            Q.data,
             auxstate.data,
             grid.vgeo,
             grid.sgeo,
-            t,
             grid.vmap⁻,
             grid.vmap⁺,
             grid.elemtobndy,
+            grid.interiorelems,
             hypervisc_indexmap,
-            grid.interiorelems;
+            t,
+            dg.gradnumflux,
+            dg.diffusion_direction,
+            Val(dim),
+            Val(N);
             ndrange = ndrange_interior_surface,
             dependencies = (comp_stream,),
         )
@@ -153,22 +152,22 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
 
         comp_stream = faceviscterms!(device, workgroups_surface)(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
-            dg.gradnumflux,
-            Q.data,
             Qvisc.data,
             Qhypervisc_grad.data,
+            Q.data,
             auxstate.data,
             grid.vgeo,
             grid.sgeo,
-            t,
             grid.vmap⁻,
             grid.vmap⁺,
             grid.elemtobndy,
+            grid.exteriorelems,
             hypervisc_indexmap,
-            grid.exteriorelems;
+            t,
+            dg.gradnumflux,
+            dg.diffusion_direction,
+            Val(dim),
+            Val(N);
             ndrange = ndrange_exterior_surface,
             dependencies = (comp_stream, exchange_Q),
         )
@@ -204,32 +203,31 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
 
         comp_stream = volumedivgrad!(device, workgroups_volume)(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
-            Qhypervisc_grad.data,
             Qhypervisc_div.data,
+            Qhypervisc_grad.data,
             grid.vgeo,
             grid.D,
-            topology.realelems;
+            dg.diffusion_direction,
+            Val(dim),
+            Val(N);
             ndrange = ndrange_volume,
             dependencies = (comp_stream,),
         )
 
         comp_stream = facedivgrad!(device, workgroups_surface)(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
-            CentralDivPenalty(),
-            Qhypervisc_grad.data,
             Qhypervisc_div.data,
+            Qhypervisc_grad.data,
             grid.vgeo,
             grid.sgeo,
             grid.vmap⁻,
             grid.vmap⁺,
             grid.elemtobndy,
-            grid.interiorelems;
+            grid.interiorelems,
+            CentralDivPenalty(),
+            dg.diffusion_direction,
+            Val(dim),
+            Val(N);
             ndrange = ndrange_interior_surface,
             dependencies = (comp_stream,),
         )
@@ -243,18 +241,18 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
 
         comp_stream = facedivgrad!(device, workgroups_surface)(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
-            CentralDivPenalty(),
-            Qhypervisc_grad.data,
             Qhypervisc_div.data,
+            Qhypervisc_grad.data,
             grid.vgeo,
             grid.sgeo,
             grid.vmap⁻,
             grid.vmap⁺,
             grid.elemtobndy,
-            grid.exteriorelems;
+            grid.exteriorelems,
+            CentralDivPenalty(),
+            dg.diffusion_direction,
+            Val(dim),
+            Val(N);
             ndrange = ndrange_exterior_surface,
             dependencies = (comp_stream, exchange_Qhypervisc_grad),
         )
@@ -272,31 +270,26 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
 
         comp_stream = volumehyperviscterms!(device, workgroups_volume)(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
             Qhypervisc_grad.data,
             Qhypervisc_div.data,
             Q.data,
             auxstate.data,
             grid.vgeo,
-            grid.ω,
             grid.D,
-            topology.realelems,
-            t;
+            grid.ω,
+            t,
+            dg.diffusion_direction,
+            Val(dim),
+            Val(N);
             ndrange = ndrange_volume,
             dependencies = (comp_stream,),
         )
 
         comp_stream = facehyperviscterms!(device, workgroups_surface)(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
-            CentralHyperDiffusiveFlux(),
             Qhypervisc_grad.data,
-            Qhypervisc_div.data,
             Q.data,
+            Qhypervisc_div.data,
             auxstate.data,
             grid.vgeo,
             grid.sgeo,
@@ -304,7 +297,11 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
             grid.vmap⁺,
             grid.elemtobndy,
             grid.interiorelems,
-            t;
+            t,
+            CentralHyperDiffusiveFlux(),
+            dg.diffusion_direction,
+            Val(dim),
+            Val(N);
             ndrange = ndrange_interior_surface,
             dependencies = (comp_stream,),
         )
@@ -318,13 +315,9 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
 
         comp_stream = facehyperviscterms!(device, workgroups_surface)(
             bl,
-            Val(dim),
-            Val(N),
-            dg.diffusion_direction,
-            CentralHyperDiffusiveFlux(),
             Qhypervisc_grad.data,
-            Qhypervisc_div.data,
             Q.data,
+            Qhypervisc_div.data,
             auxstate.data,
             grid.vgeo,
             grid.sgeo,
@@ -332,7 +325,11 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
             grid.vmap⁺,
             grid.elemtobndy,
             grid.exteriorelems,
-            t;
+            t,
+            CentralHyperDiffusiveFlux(),
+            dg.diffusion_direction,
+            Val(dim),
+            Val(N);
             ndrange = ndrange_exterior_surface,
             dependencies = (comp_stream, exchange_Qhypervisc_div),
         )
@@ -349,33 +346,26 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
     ###################
     # RHS Computation #
     ###################
-    comp_stream = volumerhs!(device, workgroups_volume)(
+    comp_stream = volumerhs!(device, (Nq, Nq))(
         bl,
-        Val(dim),
-        Val(N),
-        dg.direction,
         dQdt.data,
         Q.data,
         Qvisc.data,
         Qhypervisc_grad.data,
         auxstate.data,
         grid.vgeo,
-        t,
-        grid.ω,
         grid.D,
-        topology.realelems,
-        increment;
-        ndrange = ndrange_volume,
+        t,
+        increment,
+        dg.direction,
+        Val(dim),
+        Val(N);
+        ndrange = (nrealelem * Nq, Nq),
         dependencies = (comp_stream,),
     )
 
     comp_stream = facerhs!(device, workgroups_surface)(
         bl,
-        Val(dim),
-        Val(N),
-        dg.direction,
-        dg.numfluxnondiff,
-        dg.numfluxdiff,
         dQdt.data,
         Q.data,
         Qvisc.data,
@@ -383,11 +373,16 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
         auxstate.data,
         grid.vgeo,
         grid.sgeo,
-        t,
         grid.vmap⁻,
         grid.vmap⁺,
         grid.elemtobndy,
-        grid.interiorelems;
+        grid.interiorelems,
+        t,
+        dg.numfluxnondiff,
+        dg.numfluxdiff,
+        dg.direction,
+        Val(dim),
+        Val(N);
         ndrange = ndrange_interior_surface,
         dependencies = (comp_stream,),
     )
@@ -427,11 +422,6 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
 
     comp_stream = facerhs!(device, workgroups_surface)(
         bl,
-        Val(dim),
-        Val(N),
-        dg.direction,
-        dg.numfluxnondiff,
-        dg.numfluxdiff,
         dQdt.data,
         Q.data,
         Qvisc.data,
@@ -439,11 +429,16 @@ function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
         auxstate.data,
         grid.vgeo,
         grid.sgeo,
-        t,
         grid.vmap⁻,
         grid.vmap⁺,
         grid.elemtobndy,
-        grid.exteriorelems;
+        grid.exteriorelems,
+        t,
+        dg.numfluxnondiff,
+        dg.numfluxdiff,
+        dg.direction,
+        Val(dim),
+        Val(N);
         ndrange = ndrange_exterior_surface,
         dependencies = (
             comp_stream,
@@ -477,7 +472,7 @@ function init_ode_state(dg::DGModel, args...; init_on_cpu = false)
 
     if !init_on_cpu
         event = Event(device)
-        event = initstate!(device, Np)(
+        event = initstate!(device, min(Np, 1024))(
             bl,
             Val(dim),
             Val(N),
@@ -665,7 +660,7 @@ function nodal_update_aux!(
 
     Np = dofs_per_element(grid)
 
-    nodal_update_aux! = knl_nodal_update_aux!(device, Np)
+    nodal_update_aux! = knl_nodal_update_aux!(device, min(Np, 1024))
     ### update aux variables
     event = Event(device)
     if diffusive

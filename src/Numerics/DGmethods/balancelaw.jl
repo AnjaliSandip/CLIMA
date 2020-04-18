@@ -147,7 +147,7 @@ function create_auxstate(bl, grid)
     device = typeof(auxstate.data) <: Array ? CPU() : CUDA()
     nrealelem = length(topology.realelems)
     event = Event(device)
-    event = initauxstate!(device, Np, Np * nrealelem)(
+    event = initauxstate!(device, min(Np, 1024), Np * nrealelem)(
         bl,
         Val(dim),
         Val(polyorder),

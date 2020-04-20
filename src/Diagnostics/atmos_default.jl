@@ -5,11 +5,7 @@ using ..Mesh.Grids
 using ..MoistThermodynamics
 using LinearAlgebra
 
-Base.@kwdef mutable struct AtmosDefaultCollectedDiagnostics
-    zvals::Union{Nothing, Array} = nothing
-    repdvsr::Union{Nothing, Array} = nothing
-end
-const AtmosDefaultCollected = AtmosDefaultCollectedDiagnostics()
+include("atmos_common.jl")
 
 """
     atmos_default_init(bl, currtime)
@@ -17,39 +13,9 @@ const AtmosDefaultCollected = AtmosDefaultCollectedDiagnostics()
 Initialize the 'AtmosDefault' diagnostics group.
 """
 function atmos_default_init(dgngrp::DiagnosticsGroup, currtime)
-    mpicomm = Settings.mpicomm
-    dg = Settings.dg
-    Q = Settings.Q
-    FT = eltype(Q)
-    grid = dg.grid
-    topology = grid.topology
-    N = polynomialorder(grid)
-    Nq = N + 1
-    Nqk = dimensionality(grid) == 2 ? 1 : Nq
-    nrealelem = length(topology.realelems)
-    nvertelem = topology.stacksize
-    nhorzelem = div(nrealelem, nvertelem)
+    atmos_collect_onetime(Settings.mpicomm, Settings.dg, Settings.Q)
 
-    if Array ∈ typeof(Q).parameters
-        localvgeo = grid.vgeo
-    else
-        localvgeo = Array(grid.vgeo)
-    end
-
-    AtmosDefaultCollected.zvals = zeros(FT, Nqk * nvertelem)
-    AtmosDefaultCollected.repdvsr = zeros(FT, Nqk * nvertelem)
-
-    @visitQ nhorzelem nvertelem Nqk Nq begin
-        z = localvgeo[ijk, grid.x3id, e]
-        MH = localvgeo[ijk, grid.MHid, e]
-        AtmosDefaultCollected.zvals[Nqk * (ev - 1) + k] += MH * z
-        AtmosDefaultCollected.repdvsr[Nqk * (ev - 1) + k] += MH
-    end
-
-    # compute the full number of points on a slab
-    MPI.Allreduce!(AtmosDefaultCollected.repdvsr, +, mpicomm)
-
-    AtmosDefaultCollected.zvals ./= AtmosDefaultCollected.repdvsr
+    return nothing
 end
 
 include("thermo.jl")
@@ -198,7 +164,6 @@ atmos_default_ho_vars(m, array) =
 function compute_ho_sums!(
     atmos::AtmosModel,
     state,
-    diffusive_flux,
     aux,
     thermo,
     MH,
@@ -315,6 +280,9 @@ function atmos_default_collect(dgngrp::DiagnosticsGroup, currtime)
     end
     FT = eltype(localQ)
 
+    zvals = AtmosCollected.zvals
+    repdvsr = AtmosCollected.repdvsr
+
     # Visit each node of the state variables array and:
     # - generate and store the thermo variables,
     # - accumulate the simple horizontal sums, and
@@ -356,14 +324,13 @@ function atmos_default_collect(dgngrp::DiagnosticsGroup, currtime)
             idx = (Nq * Nq * (eh - 1)) + (Nq * (j - 1)) + i
             ql_gt_0[evk][idx] = one(FT)
 
-            z = AtmosDefaultCollected.zvals[evk]
+            z = zvals[evk]
             cld_top = max(cld_top, z)
             cld_base = min(cld_base, z)
         end
     end
 
     # reduce horizontal sums and cloud data across ranks and compute averages
-    repdvsr = AtmosDefaultCollected.repdvsr
     simple_avgs = [
         zeros(FT, num_atmos_default_simple_vars(bl, FT))
         for _ in 1:(Nqk * nvertelem)
@@ -412,7 +379,6 @@ function atmos_default_collect(dgngrp::DiagnosticsGroup, currtime)
         evk = Nqk * (ev - 1) + k
 
         state = extract_state(dg, localQ, ijk, e)
-        diffusive_flux = extract_diffusion(dg, localdiff, ijk, e)
         aux = extract_aux(dg, localaux, ijk, e)
         thermo = thermo_vars(bl, thermo_array[ijk, e])
         MH = localvgeo[ijk, grid.MHid, e]
@@ -422,7 +388,6 @@ function atmos_default_collect(dgngrp::DiagnosticsGroup, currtime)
         compute_ho_sums!(
             bl,
             state,
-            diffusive_flux,
             aux,
             thermo,
             MH,
@@ -432,7 +397,6 @@ function atmos_default_collect(dgngrp::DiagnosticsGroup, currtime)
     end
 
     # reduce across ranks and compute averages
-    repdvsr = AtmosDefaultCollected.repdvsr
     ho_avgs = [
         zeros(FT, num_atmos_default_ho_vars(bl, FT))
         for _ in 1:(Nqk * nvertelem)
@@ -485,7 +449,7 @@ function atmos_default_collect(dgngrp::DiagnosticsGroup, currtime)
         write_data(
             dgngrp.writer,
             dfilename,
-            OrderedDict("z" => AtmosDefaultCollected.zvals),
+            OrderedDict("z" => zvals),
             varvals,
             currtime,
         )

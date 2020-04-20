@@ -190,6 +190,7 @@ function SolverConfiguration(
             numfluxdiff,
             gradnumflux,
             auxstate = dg.auxstate,
+            diffusion_direction = diffdir,
         )
         slow_solver = ode_solver_type.slow_method(slow_dg, Q; dt = ode_dt)
         fast_dt = ode_dt / ode_solver_type.timestep_ratio
@@ -228,6 +229,7 @@ function SolverConfiguration(
             numfluxdiff,
             gradnumflux,
             auxstate = dg.auxstate,
+            diffusion_direction = diffdir,
         )
 
         inner_method = ode_solver_type.inner_method

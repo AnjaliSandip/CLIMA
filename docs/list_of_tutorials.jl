@@ -51,7 +51,7 @@ tutorials =
 
 # These files mirror the .jl files in `CLIMA/tutorials/`:
 tutorials = Any[
-    "Atmos" => Any[],
+    "Atmos" => Any["Rising Bubble" => "ExtendingCLIMA/Atmos/Model/risingbubble.md",],
     "Ocean" => Any[],
     "Numerics" => Any[
         "LinearSolvers" => Any["Conjugate Gradient" => "generated/Numerics/LinearSolvers/cg.md",],

@@ -1,5 +1,8 @@
 Base.HOME_PROJECT[] = abspath(Base.HOME_PROJECT[]) # JuliaLang/julia/pull/28625
 
+push!(LOAD_PATH, joinpath(@__DIR__, "..", "env", "Plots")) # add Plots env
+push!(LOAD_PATH, @__DIR__)                               # add docs env
+
 using CLIMA, Documenter, Literate
 
 # TODO: Add generated examples back

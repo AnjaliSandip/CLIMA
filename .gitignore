@@ -9,6 +9,7 @@ docs/site/
 docs/src/examples/
 docs/src/generated/
 src/**/Manifest.toml
+env/**/Manifest.toml
 *.vtk
 *.dat
 *.vtu

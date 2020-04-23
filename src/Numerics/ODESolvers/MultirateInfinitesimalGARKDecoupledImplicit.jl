@@ -1,6 +1,9 @@
 export MRIGARKDecoupledImplicit
 export MRIGARKIRK21aSandu,
-    MRIGARKESDIRK34aSandu, MRIGARKESDIRK46aSandu, MRIGARKESDIRK23LSA
+    MRIGARKESDIRK34aSandu,
+    MRIGARKESDIRK46aSandu,
+    MRIGARKESDIRK23LSA,
+    MRIGARKESDIRK24LSA
 
 """
     MRIGARKDecoupledImplicit(f!, backward_euler_solver, fastsolver, Γs, γ̂s, Q,
@@ -106,7 +109,6 @@ mutable struct MRIGARKDecoupledImplicit{
 
         # Couple of sanity checks on the assumptions of coefficients being of
         # the decoupled implicit structure of Sandu (2019)
-        @assert Δc[end] == 0
         @assert all(isapprox.(Δc[2:2:end], 0; atol = 2 * eps(RT)))
 
         Δc = Δc[1:2:(end - 1)]
@@ -448,6 +450,55 @@ function MRIGARKESDIRK23LSA(
     @assert Γ0[2, 2] + Γ0[3, 2] + Γ0[4, 2] ≈ 1 / (2 * rt2)
     @assert Γ0[4, 3] ≈ 1 - 1 / rt2
 
+
+    MRIGARKDecoupledImplicit(
+        slowrhs!,
+        implicitsolve!,
+        fastsolver,
+        (Γ0,),
+        (γ̂0,),
+        Q,
+        dt,
+        t0,
+    )
+end
+
+"""
+    MRIGARKESDIRK24LSA(f!, fastsolver, Q; dt, t0 = 0, δ = 0
+
+A 2nd order, 4 stage decoupled implicit scheme. It is based on an L-Stable,
+stiffly-accurate ESDIRK.
+"""
+function MRIGARKESDIRK24LSA(
+    slowrhs!,
+    implicitsolve!,
+    fastsolver,
+    Q;
+    dt,
+    t0 = 0,
+    γ = 0.2,
+    c3 = (2γ + 1) / 2,
+    a32 = 0.2,
+    α = -0.1,
+    β1 = c3 / 10,
+    β2 = c3 / 10,
+)
+    T = real(eltype(Q))
+
+    #! format: off
+    Γ0 = [
+                                                                                                    2*γ                                                            0                                               0  0
+                                                                                                     -γ                                                            γ                                               0  0
+                                                                                                      α                                                 c3 - α - 2*γ                                               0  0
+                                                                                    -a32 + c3 - α - 2*γ                                             a32 - c3 + α + γ                                               γ  0
+                                                                                                     β1                                                           β2                               -c3 - β1 - β2 + 1  0
+          a32 - c3 - β1 + 1 - (-2*γ + 1 - 2*c3*((1 - γ)^2/2 - 1/4)/a32)/(4*γ) - ((1 - γ)^2/2 - 1/4)/a32  -a32 - β2 + (-2*γ + 1 - 2*c3*((1 - γ)^2/2 - 1/4)/a32)/(4*γ)  c3 + β1 + β2 - γ - 1 + ((1 - γ)^2/2 - 1/4)/a32  γ
+         ]
+
+    γ̂0 = [0 0 0 0]
+    #! format: on
+
+    # TODO: Add checks on accuracy?
 
     MRIGARKDecoupledImplicit(
         slowrhs!,

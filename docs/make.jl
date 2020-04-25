@@ -2,7 +2,7 @@ Base.HOME_PROJECT[] = abspath(Base.HOME_PROJECT[]) # JuliaLang/julia/pull/28625
 
 using CLIMA, Documenter, Literate
 
-tutorials_dir = joinpath(@__DIR__, "..", "tutorials")      # julia src files
+tutorials_dir = joinpath(@__DIR__, "..", "tutorials")  # julia src files
 generated_dir = joinpath(@__DIR__, "src", "generated") # generated files directory
 mkpath(generated_dir)
 generate_tutorials = true

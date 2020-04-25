@@ -4,29 +4,30 @@
 
 # generate tutorials
 import Literate
+using AutoPages: gather_pages, replace_reverse
 
-tutorials_files = [
+tutorials_jl = [
     joinpath(root, f)
     for (root, dirs, files) in Base.Filesystem.walkdir(tutorials_dir)
     for f in files
 ]
 
-filter!(x -> !occursin("topo.jl", x), tutorials_files)                       # currently broken, TODO: Fix me!
-filter!(x -> !occursin("dry_rayleigh_benard.jl", x), tutorials_files)        # currently broken, TODO: Fix me!
-filter!(x -> !occursin("ex_001_periodic_advection.jl", x), tutorials_files)  # currently broken, TODO: Fix me!
-filter!(x -> !occursin("ex_002_solid_body_rotation.jl", x), tutorials_files) # currently broken, TODO: Fix me!
-filter!(x -> !occursin("ex_003_acoustic_wave.jl", x), tutorials_files)       # currently broken, TODO: Fix me!
-filter!(x -> !occursin("ex_004_nonnegative.jl", x), tutorials_files)         # currently broken, TODO: Fix me!
-filter!(x -> !occursin("KinematicModel.jl", x), tutorials_files)             # currently broken, TODO: Fix me!
-filter!(x -> !occursin("ex_1_saturation_adjustment.jl", x), tutorials_files) # currently broken, TODO: Fix me!
-filter!(x -> !occursin("ex_2_Kessler.jl", x), tutorials_files)               # currently broken, TODO: Fix me!
+filter!(x -> !occursin("topo.jl", x), tutorials_jl)                       # currently broken, TODO: Fix me!
+filter!(x -> !occursin("dry_rayleigh_benard.jl", x), tutorials_jl)        # currently broken, TODO: Fix me!
+filter!(x -> !occursin("ex_001_periodic_advection.jl", x), tutorials_jl)  # currently broken, TODO: Fix me!
+filter!(x -> !occursin("ex_002_solid_body_rotation.jl", x), tutorials_jl) # currently broken, TODO: Fix me!
+filter!(x -> !occursin("ex_003_acoustic_wave.jl", x), tutorials_jl)       # currently broken, TODO: Fix me!
+filter!(x -> !occursin("ex_004_nonnegative.jl", x), tutorials_jl)         # currently broken, TODO: Fix me!
+filter!(x -> !occursin("KinematicModel.jl", x), tutorials_jl)             # currently broken, TODO: Fix me!
+filter!(x -> !occursin("ex_1_saturation_adjustment.jl", x), tutorials_jl) # currently broken, TODO: Fix me!
+filter!(x -> !occursin("ex_2_Kessler.jl", x), tutorials_jl)               # currently broken, TODO: Fix me!
 
 println("Building literate tutorials:")
-for e in tutorials_files
-    println("    $(e)")
+for tutorial in tutorials_jl
+    println("    $(tutorial)")
 end
 
-for tutorial in tutorials_files
+for tutorial in tutorials_jl
     gen_dir = joinpath(generated_dir, relpath(dirname(tutorial), tutorials_dir))
     input = abspath(tutorial)
     script = Literate.script(input, gen_dir)
@@ -36,28 +37,13 @@ for tutorial in tutorials_files
     # Literate.notebook(input, gen_dir, execute = true)
 end
 
-tutorials = [
-    joinpath(root, f)
-    for (root, dirs, files) in Base.Filesystem.walkdir(generated_dir)
-    for f in files
-]
-tutorials =
-    map(x -> last(split(x, joinpath("docs", "src", "generated"))), tutorials)
-# @show tutorials
-
-# TODO: Can/should we construct this Dict automatically?
-# We could use `titlecase(replace(basename(x), "_"=>" "))` such that
-# the title for `conjugate_gradient.jl` is `Conjugate Gradient`
-
-# These files mirror the .jl files in `CLIMA/tutorials/`:
-tutorials = Any[
-    "Atmos" => Any[],
-    "Ocean" => Any[],
-    "Numerics" => Any[
-        "LinearSolvers" => Any["Conjugate Gradient" => "generated/Numerics/LinearSolvers/cg.md",],
-        "Contributing" => Any["Notes on Literate" => "generated/literate_markdown.md",],
-    ],
-]
+tutorials, _ = gather_pages(;
+  filenames=relpath.(tutorials_jl, dirname(@__DIR__)),
+  extension_filter=x->endswith(x, ".jl"),
+  transform_extension=x->replace_reverse(x, ".jl" => ".md"; count=1),
+  remove_first_level=true,
+  transform_path=x->replace(x, "tutorials"=>"generated", count=1),
+  )
 
 # Allow flag to skip generated
 # tutorials since this is by

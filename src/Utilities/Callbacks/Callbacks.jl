@@ -14,6 +14,7 @@ using CLIMAParameters.Planet: day
 
 using ..Courant
 using ..Checkpoint
+using ..DGmethods
 using ..DGmethods: vars_state, vars_aux
 using ..Diagnostics
 using ..GenericCallbacks
@@ -21,6 +22,7 @@ using ..MPIStateArrays
 using ..ODESolvers
 using ..VariableTemplates
 using ..VTK
+using ..Mesh.Grids
 
 @init @require CuArrays = "3a865a2d-5b23-5a0f-bc46-62713ec82fae" begin
     using .CuArrays, .CuArrays.CUDAdrv, .CuArrays.CUDAnative

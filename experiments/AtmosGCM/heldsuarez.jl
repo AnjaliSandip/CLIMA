@@ -23,6 +23,7 @@ const param_set = EarthParameterSet()
 
 struct HeldSuarezDataConfig{FT}
     T_ref::FT
+    ntracers::Int
 end
 
 function init_heldsuarez!(bl, state, aux, coords, t)
@@ -33,7 +34,9 @@ function init_heldsuarez!(bl, state, aux, coords, t)
     state.ρ = aux.ref_state.ρ
     state.ρu = SVector{3, FT}(0, 0, 0)
     state.ρe = rnd * aux.ref_state.ρe
-
+    
+    # Set initial tracers states to some constant value (arbitrary for testing purposes) 
+    state.tracers.ρχ = @SVector [FT(ii/1000) for ii = 1:5]
     nothing
 end
 
@@ -45,6 +48,9 @@ function config_heldsuarez(FT, poly_order, resolution)
     temp_profile_ref = DecayingTemperatureProfile(T_sfc, ΔT, H_t)
     ref_state = HydrostaticState(temp_profile_ref, FT(0))
 
+    # Set up "heavy" tracer block
+    δ_χ = @SVector [FT(ii) for ii = 1:5] # Arbitrary integer scaling for diffusivity
+    
     # Set up a Rayleigh sponge to dampen flow at the top of the domain
     domain_height::FT = 30e3               # distance between surface and top of atmosphere (m)
     z_sponge::FT = 12e3                    # height at which sponge begins (m)
@@ -71,9 +77,10 @@ function config_heldsuarez(FT, poly_order, resolution)
         turbulence = SmagorinskyLilly(c_smag),
         hyperdiffusion = StandardHyperDiffusion(τ_hyper),
         moisture = DryModel(),
+        tracers = NTracers{length(δ_χ),FT}(δ_χ),
         source = (Gravity(), Coriolis(), held_suarez_forcing!, sponge),
         init_state = init_heldsuarez!,
-        data_config = HeldSuarezDataConfig(T_ref),
+        data_config = HeldSuarezDataConfig{FT}(T_ref, 5),
     )
 
     config = CLIMA.AtmosGCMConfiguration(

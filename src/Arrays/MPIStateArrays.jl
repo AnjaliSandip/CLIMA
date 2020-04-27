@@ -83,6 +83,7 @@ mutable struct MPIStateArray{
         mpi_knows_cuda = nothing,
     ) where {FT, V}
         data = similar(DA, FT, Np, nstate, numelem)
+        fill!(data, zero(FT))
 
         if isnothing(mpi_knows_cuda)
             mpi_knows_cuda = MPI.has_cuda()

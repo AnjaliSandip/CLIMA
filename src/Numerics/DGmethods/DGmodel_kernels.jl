@@ -16,11 +16,6 @@ using .NumericalFluxes:
 
 using ..Mesh.Geometry
 
-using Requires
-@init @require CUDAnative = "be33ccc6-a3ff-5ff2-a52e-74243cff1e17" begin
-    using .CUDAnative
-end
-
 # {{{ FIXME: remove this after we've figure out how to pass through to kernel
 const _ξ1x1, _ξ2x1, _ξ3x1 = Grids._ξ1x1, Grids._ξ2x1, Grids._ξ3x1
 const _ξ1x2, _ξ2x2, _ξ3x2 = Grids._ξ1x2, Grids._ξ2x2, Grids._ξ3x2
@@ -1456,7 +1451,7 @@ end
                 reverse_integral_load_aux!(
                     bl,
                     Vars{vars_reverse_integrals(bl, FT)}(l_V),
-                    Vars{vars_state(bl, FT)}(view(state, ijk, :, et)),
+                    Vars{vars_state(bl, FT)}(view(state, ijk, :, e)),
                     Vars{vars_aux(bl, FT)}(view(auxstate, ijk, :, e)),
                 )
                 l_V .= l_T .- l_V

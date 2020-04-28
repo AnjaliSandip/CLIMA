@@ -8,14 +8,14 @@ using CLIMA.VTK
 using Logging
 using Printf
 using LinearAlgebra
-using CLIMA.DGmethods: DGModel, init_ode_state, LocalGeometry, courant
+using CLIMA.DGmethods:
+    DGModel, init_ode_state, LocalGeometry, courant, RemainderModel
 using CLIMA.DGmethods.NumericalFluxes:
     Rusanov, CentralNumericalFluxGradient, CentralNumericalFluxDiffusive
 using CLIMA.Courant
 using CLIMA.Atmos:
     AtmosModel,
     AtmosAcousticLinearModel,
-    RemainderModel,
     FlatOrientation,
     NoReferenceState,
     ReferenceState,

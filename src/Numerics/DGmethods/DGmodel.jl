@@ -41,6 +41,9 @@ function DGModel(
     )
 end
 
+# Include the remainder model for composing DG models and balance laws
+include("remainder.jl")
+
 function (dg::DGModel)(dQdt, Q, ::Nothing, t; increment = false)
 
     bl = dg.balancelaw

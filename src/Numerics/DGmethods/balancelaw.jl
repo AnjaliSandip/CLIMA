@@ -70,6 +70,7 @@ function init_aux! end
 function init_state! end
 
 using ..Courant
+
 """
     calculate_dt(dg, model, Q, Courant_number, direction, t)
 

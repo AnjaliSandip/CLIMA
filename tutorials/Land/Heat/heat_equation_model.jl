@@ -43,7 +43,7 @@ end
 #   `u` advection velocity
 #   `D` Diffusion tensor
 vars_aux(::HeatModel, FT) = @vars(z::FT, T::FT) # stored dg.auxstate
-vars_state(::HeatModel, FT) = @vars(ρcT::FT, q_tot::FT) # stored in Q
+vars_state(::HeatModel, FT) = @vars(ρcT::FT) # stored in Q
 vars_gradient(::HeatModel, FT) = @vars(T::FT) # not stored
 vars_diffusive(::HeatModel, FT) = @vars(∇T::SVector{3,FT}) # stored in dg.diffstate
 
@@ -103,6 +103,7 @@ function flux_nondiffusive!(
     t::Real,
   )
 end
+
 # Calculate thermal flux (diffusive (?))
 function flux_diffusive!(
     m::HeatModel,
@@ -148,6 +149,7 @@ function boundary_state!(nf, m::HeatModel, state⁺::Vars, aux⁺::Vars,
     nothing
   end
 end
+
 # Boundary condition function - repeated?
 function boundary_state!(nf, m::HeatModel, state⁺::Vars, diff⁺::Vars,
                          aux⁺::Vars, nM, state⁻::Vars, diff⁻::Vars, aux⁻::Vars,

@@ -1,22 +1,26 @@
 #### Heat equation tutorial
 
 #=
-Heat Model
-Computes diffusive flux `F` in:
-∂y / ∂t = ∇ ⋅ Flux + Source
+Heat equation
+
 ```
-  ∂T     ∂      ∂T
------- = --(α * --)
-  ∂t     ∂z     ∂z
+∂T
+-- + ∇⋅(-α ∇T) = 0
+∂t
 ```
+
+Or,
+
+```
+∂T
+-- + ∇⋅(F(T,t)) = 0
+∂t
+```
+
 where
  - `α` is the thermal conductivity (W/(m K))
-To write this in the form
-```
-∂Y
--- + ∇⋅F(Y,t) = 0
-∂t
-we write `Y = T` and `F(Y, t) = -α ∇T`.
+ - `F(T,t)` is prescribed in `flux_diffusive!`
+
 =#
 
 ####
@@ -48,7 +52,7 @@ using CLIMA.ODESolvers
 using Interpolations
 using DelimitedFiles
 
-# ENV["GKS_ENCODING"] = "utf-8"
+using Plots
 
 ENV["CLIMA_GPU"] = "false"
 
@@ -82,8 +86,9 @@ println("2) Set up domain...")
 
 # NOTE: this is using 5 vertical elements, each with a 5th degree polynomial,
 # giving an approximate resolution of 5cm
-const velems = collect(1:10) # Elements at: [0.0 -0.2 -0.4 -0.6 -0.8 -1.0] (m)
-const N = 5 # Order of polynomial function between each element
+velems = collect(0:10) # Elements at: [0.0 -0.2 -0.4 -0.6 -0.8 -1.0] (m)
+velems = velems / 10
+N = 5 # Order of polynomial function between each element
 
 # Set domain using Stached Brick Topology
 topl = StackedBrickTopology(MPI.COMM_WORLD, (0.0:1,0.0:1,velems);
@@ -97,7 +102,7 @@ m = HeatModel(
     ρc = (state, aux, t) ->  1,
 
     # Define thermal conductivity of soil
-    α  = (state, aux, t) ->  10,
+    α  = (state, aux, t) ->  0.01,
 
     # Define initial temperature of soil
     initialT = (aux, t) -> (273.15 + 22.0),
@@ -116,9 +121,10 @@ dg = DGModel( #
 
 # Minimum spatial and temporal steps
 Δ = min_node_distance(grid)
-CFL_bound = (Δ^2 / (2 * 2.42/2.49e6))
-dt = CFL_bound*0.5 # TODO: provide a "default" timestep based on  Δx,Δy,Δz
 
+given_CFL = 0.08
+CFL_bound = given_CFL*Δ^2 / m.α(1,1,1)
+dt = CFL_bound
 
 ####
 #### 3) Define variables for simulation
@@ -129,13 +135,11 @@ println("3) Define variables for simulation...")
 const minute = 60
 const hour = 60*minute
 const day = 24*hour
-# const timeend = 1*minute
-# const n_outputs = 25
-const timeend = 5*day
+const n_outputs = 5
+const timeend = 20
 
 # Output frequency:
-# const every_x_simulation_time = ceil(Int, timeend/n_outputs)
-const every_x_simulation_time = 1*day
+const every_x_simulation_time = ceil(Int, timeend/n_outputs)
 
 
 ####
@@ -166,12 +170,7 @@ stcb = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time, lsrk) do (
   state_vars = get_vars_from_stack(grid, Q, m, vars_state; exclude=["θi"])
   aux_vars = get_vars_from_stack(grid, dg.auxstate, m, vars_aux; exclude=["z","ψ"])
   all_vars = OrderedDict(state_vars..., aux_vars...)
-  # @show typeof(collect(values(all_vars)))
-  # @show values(all_vars)
-  # @show keys(all_vars)
-  # @show values(all_vars)
   write_data(NetCDFWriter(), output_data(step[1]), dims, all_vars, gettime(lsrk))
-  # write_data(nc::NetCDFWriter, filename, dims, varvals, simtime)
   step[1]+=1
   nothing
 end
@@ -192,5 +191,8 @@ println("6) Post-processing...")
 all_data = collect_data(output_data, step[1])
 
 # To get "T" at timestep 0:
+# all_data[0]["T"][:]
+
+plot_solution(all_data, ("ρcT",), joinpath(output_dir, "solution_vs_time.png"))
 
 

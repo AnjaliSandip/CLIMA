@@ -1,27 +1,8 @@
-# --------------------------------- CLIMA SOIL MODEL -----------------------
-# CLIMA_SoilHeat.jl: This model simulates soil heat dynamics for the CliMA model
+#### Heat model
 
-"""
-Soil Heat Model
-Computes diffusive flux `F` in:
-∂y / ∂t = ∇ ⋅ Flux + Source
-```
-  ∂T     ∂      ∂T
------- = --(α * --)
-  ∂t     ∂z     ∂z
-```
-where
- - `α` is the thermal conductivity (W/(m K))
-To write this in the form
-```
-∂Y
--- + ∇⋅F(Y,t) = 0
-∂t
-```
-we write `Y = T` and `F(Y, t) = -α ∇T`.
-"""
-
-# --------------------------------- 1) Import/Export Needed Functions -----------------------
+####
+#### 1) Import/Export Needed Functions
+####
 
 # Add necessary CliMA functions and sub-routines
 using StaticArrays
@@ -34,7 +15,9 @@ import CLIMA.DGmethods: BalanceLaw,
                         boundary_state!, wavespeed, LocalGeometry
 
 
-# --------------------------------- 2) Define Structs ---------------------------------------
+####
+#### 2) Define Structs
+####
 
 # Introduce needed variables into HeatModel struct
 Base.@kwdef struct HeatModel{Fρc, Fα, FiT, Fst} <: BalanceLaw

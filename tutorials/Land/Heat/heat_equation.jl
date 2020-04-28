@@ -1,9 +1,27 @@
-# --------------------------------- run CLIMA SOIL MODEL -----------------------
-# CLIMA_run_SoilHeat.jl: This model simulates soil heat dynamics for the CliMA model
+#### Heat equation tutorial
 
-######
-###### 1) Import/Export Needed Functions
-######
+#=
+Heat Model
+Computes diffusive flux `F` in:
+∂y / ∂t = ∇ ⋅ Flux + Source
+```
+  ∂T     ∂      ∂T
+------ = --(α * --)
+  ∂t     ∂z     ∂z
+```
+where
+ - `α` is the thermal conductivity (W/(m K))
+To write this in the form
+```
+∂Y
+-- + ∇⋅F(Y,t) = 0
+∂t
+we write `Y = T` and `F(Y, t) = -α ∇T`.
+=#
+
+####
+#### 1) Import/Export Needed Functions
+####
 println("1) Import/Export Needed Functions")
 
 # Load necessary CliMA subroutines
@@ -46,9 +64,9 @@ mkpath(output_dir)
 # Add soil model
 include("heat_equation_model.jl")
 
-######
-###### Include helper and plotting functions (to be refactored/moved into CLIMA src)
-######
+####
+#### Include helper and plotting functions (to be refactored/moved into CLIMA src)
+####
 
 function get_z(grid)
     # TODO: this currently uses some internals: provide a better way to do this
@@ -57,9 +75,9 @@ end
 include(joinpath("..","helper_funcs.jl"))
 include(joinpath("..","plotting_funcs.jl"))
 
-######
-###### 2) Set up domain
-######
+####
+#### 2) Set up domain
+####
 println("2) Set up domain...")
 
 # NOTE: this is using 5 vertical elements, each with a 5th degree polynomial,
@@ -102,9 +120,9 @@ CFL_bound = (Δ^2 / (2 * 2.42/2.49e6))
 dt = CFL_bound*0.5 # TODO: provide a "default" timestep based on  Δx,Δy,Δz
 
 
-######
-###### 3) Define variables for simulation
-######
+####
+#### 3) Define variables for simulation
+####
 println("3) Define variables for simulation...")
 
 # Define time variables
@@ -120,9 +138,9 @@ const timeend = 5*day
 const every_x_simulation_time = 1*day
 
 
-######
-###### 4) Prep ICs, and time-stepper and output configurations
-######
+####
+#### 4) Prep ICs, and time-stepper and output configurations
+####
 println("4) Prep ICs, and time-stepper and output configurations...")
 
 # state variable
@@ -148,15 +166,20 @@ stcb = GenericCallbacks.EveryXSimulationTime(every_x_simulation_time, lsrk) do (
   state_vars = get_vars_from_stack(grid, Q, m, vars_state; exclude=["θi"])
   aux_vars = get_vars_from_stack(grid, dg.auxstate, m, vars_aux; exclude=["z","ψ"])
   all_vars = OrderedDict(state_vars..., aux_vars...)
+  # @show typeof(collect(values(all_vars)))
+  # @show values(all_vars)
+  # @show keys(all_vars)
+  # @show values(all_vars)
   write_data(NetCDFWriter(), output_data(step[1]), dims, all_vars, gettime(lsrk))
+  # write_data(nc::NetCDFWriter, filename, dims, varvals, simtime)
   step[1]+=1
   nothing
 end
 
 
-######
-###### 5) Solve the equations
-######
+####
+#### 5) Solve the equations
+####
 println("5) Solve the equations...")
 
 solve!(Q, lsrk; timeend=timeend, callbacks=(stcb,))

@@ -1,132 +1,78 @@
 """
     RemainderModel(main::BalanceLaw, subcomponents::Tuple)
 
-Compute the "remainder" contribution of the `main` model, after subtracting `subcomponents`.
+Compute the "remainder" contribution of the `main` model, after subtracting
+`subcomponents`.
+
+Currently only the `flux_nondiffusive!` and `source!` are handled by the
+remainder model
 """
 struct RemainderModel{M, S} <: BalanceLaw
     main::M
     subs::S
 end
 
+# Inherit most of the functionality from the main model
 vars_state(rem::RemainderModel, FT) = vars_state(rem.main, FT)
+
 vars_gradient(rem::RemainderModel, FT) = vars_gradient(rem.main, FT)
+
 vars_diffusive(rem::RemainderModel, FT) = vars_diffusive(rem.main, FT)
+
 vars_aux(rem::RemainderModel, FT) = vars_aux(rem.main, FT)
+
 vars_integrals(rem::RemainderModel, FT) = vars_integrals(rem.main, FT)
+
 vars_reverse_integrals(rem::RemainderModel, FT) = vars_integrals(rem.main, FT)
+
 vars_gradient_laplacian(rem::RemainderModel, FT) =
     vars_gradient_laplacian(rem.main, FT)
+
 vars_hyperdiffusive(rem::RemainderModel, FT) = vars_hyperdiffusive(rem.main, FT)
 
-update_aux!(
-    dg::DGModel,
-    rem::RemainderModel,
-    Q::MPIStateArray,
-    t::Real,
-    elems::UnitRange,
-) = update_aux!(dg, rem.main, Q, t, elems)
+update_aux!(dg::DGModel, rem::RemainderModel, args...) =
+    update_aux!(dg, rem.main, args...)
 
-integral_load_aux!(rem::RemainderModel, integ::Vars, state::Vars, aux::Vars) =
-    integral_load_aux!(rem.main, integ, state, aux)
+update_aux_diffusive!(dg::DGModel, rem::RemainderModel, args...) =
+    update_aux_diffusive!(dg, rem.main, args...)
 
-integral_set_aux!(rem::RemainderModel, aux::Vars, integ::Vars) =
-    integral_set_aux!(rem.main, aux, integ)
+integral_load_aux!(rem::RemainderModel, args...) =
+    integral_load_aux!(rem.main, args...)
 
-reverse_integral_load_aux!(
-    rem::RemainderModel,
-    integ::Vars,
-    state::Vars,
-    aux::Vars,
-) = reverse_integral_load_aux!(rem.main, integ, state, aux)
+integral_set_aux!(rem::RemainderModel, args...) =
+    integral_set_aux!(rem.main, args...)
 
-reverse_integral_set_aux!(rem::RemainderModel, aux::Vars, integ::Vars) =
-    reverse_integral_set_aux!(rem.main, aux, integ)
+reverse_integral_load_aux!(rem::RemainderModel, args...) =
+    reverse_integral_load_aux!(rem.main, args...)
 
-function hyperdiffusive!(
-    rem::RemainderModel,
-    hyperdiffusive::Vars,
-    hypertransform::Grad,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-)
-    hyperdiffusive!(rem.main, hyperdiffusive, hypertransform, state, aux, t)
-end
-function flux_diffusive!(
-    rem::RemainderModel,
-    flux::Grad,
-    state::Vars,
-    diffusive::Vars,
-    hyperdiffusive::Vars,
-    aux::Vars,
-    t::Real,
-)
-    flux_diffusive!(rem.main, flux, state, diffusive, hyperdiffusive, aux, t)
-end
+reverse_integral_set_aux!(rem::RemainderModel, args...) =
+    reverse_integral_set_aux!(rem.main, args...)
 
-gradvariables!(
-    rem::RemainderModel,
-    transform::Vars,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-) = gradvariables!(rem.main, transform, state, aux, t)
+hyperdiffusive!(rem::RemainderModel, args...) =
+    hyperdiffusive!(rem.main, args...)
 
-diffusive!(
-    rem::RemainderModel,
-    diffusive::Vars,
-    ∇transform::Grad,
-    state::Vars,
-    aux::Vars,
-    t::Real,
-) = diffusive!(rem.main, diffusive, ∇transform, state, aux, t)
+flux_diffusive!(rem::RemainderModel, args...) =
+    flux_diffusive!(rem.main, args...)
+
+gradvariables!(rem::RemainderModel, args...) = gradvariables!(rem.main, args...)
+
+diffusive!(rem::RemainderModel, args...) = diffusive!(rem.main, args...)
+
+boundary_state!(nf, rem::RemainderModel, x...) =
+    boundary_state!(nf, rem.main, x...)
+
+normal_boundary_flux_diffusive!(nf, rem::RemainderModel, args...) =
+    normal_boundary_flux_diffusive!(nf, rem.main, args...)
+
+init_aux!(rem::RemainderModel, args...) = init_aux!(rem.main, args...)
+
+init_state!(rem::RemainderModel, args...) = init_state!(rem.main, args...)
 
 function wavespeed(rem::RemainderModel, nM, state::Vars, aux::Vars, t::Real)
     ref = aux.ref_state
     return wavespeed(rem.main, nM, state, aux, t) -
            sum(sub -> wavespeed(sub, nM, state, aux, t), rem.subs)
 end
-
-boundary_state!(nf, rem::RemainderModel, x...) =
-    boundary_state!(nf, rem.main, x...)
-function normal_boundary_flux_diffusive!(
-    nf,
-    rem::RemainderModel,
-    fluxᵀn::Vars{S},
-    n⁻,
-    state⁻,
-    diff⁻,
-    hyperdiff⁻,
-    aux⁻,
-    state⁺,
-    diff⁺,
-    hyperdiff⁺,
-    aux⁺,
-    bctype::Integer,
-    t,
-    args...,
-) where {S}
-    normal_boundary_flux_diffusive!(
-        nf,
-        rem.main,
-        fluxᵀn,
-        n⁻,
-        state⁻,
-        diff⁻,
-        hyperdiff⁻,
-        aux⁻,
-        state⁺,
-        diff⁺,
-        hyperdiff⁺,
-        aux⁺,
-        bctype,
-        t,
-        args...,
-    )
-end
-
-init_aux!(rem::RemainderModel, _...) = nothing
-init_state!(rem::RemainderModel, _...) = nothing
 
 function flux_nondiffusive!(
     rem::RemainderModel,

@@ -543,23 +543,11 @@ function restart_auxstate(bl, grid, aux_data)
 end
 
 # fallback
-function update_aux!(
-    dg::DGModel,
-    bl::BalanceLaw,
-    Q::MPIStateArray,
-    t::Real,
-    elems::UnitRange,
-)
+function update_aux!(dg::DGModel, bl, Q, t, elems)
     return false
 end
 
-function update_aux_diffusive!(
-    dg::DGModel,
-    bl::BalanceLaw,
-    Q::MPIStateArray,
-    t::Real,
-    elems::UnitRange,
-)
+function update_aux_diffusive!(dg::DGModel, bl, Q, t, elems)
     return false
 end
 
